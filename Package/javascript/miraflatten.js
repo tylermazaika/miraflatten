@@ -30,28 +30,14 @@ REQUIREMENTS
 
 	1) All objects -- including bpatchers -- to be included in the Proxy patch must have their Scripting Name (varname) set.
 
-	2) Multiple [js miraflatten.js] can be used in the same Source Patcher.  If you are doing this, make sure each instance of miraflatten.js has a different proxypatchervarname.
+	2) Multiple [js miraflatten.js] can be used in the same Source Patcher.  If you are doing this, make sure each instance of miraflatten.js is set with a different framepanelvarname.
 
 
 SETUP
 
-	On first usage send the message:
+	On first usage send a BANG to the RIGHT inlet
 
-			initialize 1
-
-		Or you can send 'bang' into the three inlets in right-to-left order.  
-			- The right bang creates a mapping of Source Patcher objects
-			- The middle bang creates the clone objects in the Proxy Patcher (and a mira.frame)
-			- The left bang initializes the bindings between the Source Patcher and the Proxy Patcher
-
-
-
-	After saving/re-opening your patcher, you can send the message (for instance in response to [loadbang]): 
-
-			initialize
-
-		Or you can send bangs to the rightmost and leftmost inlets, skipping the middle one.
-
+	After saving/re-opening your patcher, you can send a BANG to the LEFT inlet.
 
 
 LIMITATIONS
@@ -62,9 +48,9 @@ LIMITATIONS
 
 	3) It is not possible to set the text of "comment" and "live.comment" objects programatically.  So right now they are copied into the proxy interface with their respective object names and they can be edited and saved.
 
-	4) In the Proxy patch, objects are given varnames which encode.  These cannot be changed, otherwise the bindings will not work when the patch is reloaded.
+	4) In the Proxy patch, objects are given varnames which encode the bpatcher view hierarchy.  These cannot be changed, otherwise the bindings will not work when the patch is reloaded.
 
-	5) When you make changes to the Source Patcher (e.g. changing object contents, changing Scripting Names) you will need to recreate the Proxy patch.
+	5) When you make changes to the Source Patcher (e.g. changing object contents, changing Scripting Names) you will need to recreate the Proxy patch (bang in the RIGHT inlet).
 
 
 ------------------------------------------------------------------------------------------------------------
@@ -73,10 +59,9 @@ LIMITATIONS
 
 
 autowatch=0
-inlets=3
-setinletassist(2, "bang: get list of objects for Mira proxying")
-setinletassist(1, "bang: generate Mira proxy objects in target patcher")
-setinletassist(0, "initialize, initialize 1, bang: create bindings of original objects to Mira proxy objects (in target patcher)")
+inlets=2
+setinletassist(1, "bang: generate and replace Mira proxy objects in target patcher. Then initiate bindings.")
+setinletassist(0, "bang: create bindings of original objects to Mira proxy objects (in target patcher).  Assumes proxy objects were already created.")
 
 var miraframe;
 var framepanelvarname = "mira1"
@@ -112,43 +97,43 @@ var kVarnameDepthSeparator = "__"
 // -----------------------------------------------------------------------------------------------------------
 
 
+function bang() {
+	// post("bang", this.inlet, this.inlet==1, "\n")
+	initialize( this.inlet==1 ? 1 : 0 )
+}
 
-function initialize() {
+
+function initialize(v) {
 	initProxyPatcher()
 	getObjects( this.patcher, tgt_patcher )
-	if (arguments.length>0 && arguments[0]==1 ) {
+	if (v && v==1 ) {
 		createMiraObjInterface()
 	}
 	makeBindings()
 }
+initialize.local = 1
 
 
+/* These integer actions were for development use only.*/
+function msg_int(v) {
+	if ( this.inlet==1 ) {
+		if ( v==2 ) {
 
-function bang() {
-	if ( this.inlet==2 ) {
+			// Read objects list
+			initProxyPatcher()
+			getObjects( this.patcher, tgt_patcher )
 
-		// Read objects list
-		initProxyPatcher()
-		getObjects( this.patcher, tgt_patcher )
+		} else if ( v==0 ) {	
 
-	} else if ( this.inlet==0 ) {	
+			makeBindings()
 
-		makeBindings()
+		} else if (v==1 ) {
 
-	} else if ( this.inlet==1 ) {
-
-		// Create flattened Mira patch
-		createMiraObjInterface()
+			// Create flattened Mira patch
+			createMiraObjInterface()
+		}
 	}
 }
-
-
-
-
-
-
-
-
 
 
 // -----------------------------------------------------------------------------------------------------------
@@ -175,6 +160,8 @@ function initProxyPatcher() {
 	}
 
 	tgt_patcher = b.subpatcher()
+	// I don't think there is a real need to use presentation
+	// tgt_patcher.setattr("openinpresentation", 1)
 }
 initProxyPatcher.local = 1
 
@@ -271,6 +258,7 @@ function createMiraObjInterface() {
 	var instantiation_arguments = [obj_rect[0], obj_rect[1], "mira.frame" ]
 	var new_obj = tgt_patcher.newdefault.apply(tgt_patcher, instantiation_arguments)
 	new_obj.varname = miraframe.varname
+	new_obj.setattr("presentation", 1)
 	new_obj.setattr("presentation_rect", obj_rect)
 	new_obj.setattr("patching_rect", obj_rect)
 	tgt_patcher.message("sendtoback", new_obj.varname)
@@ -346,7 +334,7 @@ maxobjisbpatcher.local = 1
 Create a MiraObject based on a maxobj and add it to the list of managed objects. The Maxobject can be nested in a hierarchy of bpatchers.
 */
 function addMaxobject( maxobj, bpatcher_offset ) {
-	post("   addMaxobject", maxobj.varname, "bpatcher_offset:", bpatcher_offset.x, bpatcher_offset.y, "\n")
+	post("   addMaxobject", maxobj.varname, "bpatcher_offset:", bpatcher_offset.x, bpatcher_offset.y, "boxatoms", maxobj.getboxattr("boxatoms"), "\n")
 	var o = new MiraObject( maxobj, bpatcher_offset )
 	OBJ.push( o )
 }
@@ -506,8 +494,16 @@ function createBoundMiraObject( miraobj, extant_varnames ) {
 
 	// 2024-11-08: It isn't currently possible to get the contents of comment/live.comment from the source object.  We can at least put some text in place to let the user know there is a comment there which they can label later.
 	if ( new_obj.maxclass == "comment" || new_obj.maxclass == "live.comment" ) {
-		// new_obj.message("set", miraobj.originalObj.getvalueof() )
-		new_obj.message("set", "<" + new_obj.maxclass + ">")
+
+		var text = "<" + new_obj.maxclass + ">"
+		try {
+			var v = miraobj.originalObj.getboxattr("boxatoms")
+			post("v", v, typeof v, "\n")
+			text = v ? v : text
+		} catch (err) {
+			error(String(err),"\n")
+		}
+		new_obj.message("set", text)
 	}
 }
 createBoundMiraObject.local = 1
@@ -521,7 +517,7 @@ function initializeBindingForMiraObject( miraobj ) {
 	
 	Creates MaxobjListener bidirectional bindings for the "value" attrs between originalObj and proxyObj.
 
-	Create MaxobjListener binding on "hidden" attr from originalObj to proxyObj.
+	TODO: Create MaxobjListener binding on "hidden" attr from originalObj to proxyObj.
 	*/
 	post("initializeBindingForMiraObject", miraobj.originalObj.varname, "\n")
 	if ( ! miraobj.originalObj ) {
