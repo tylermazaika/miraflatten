@@ -2,7 +2,7 @@
 	"name" : "Mira Bpatcher Util",
 	"version" : 1,
 	"creationdate" : 3813605015,
-	"modificationdate" : 3814208008,
+	"modificationdate" : 3814211824,
 	"viewrect" : [ 42.0, 121.0, 300.0, 500.0 ],
 	"autoorganize" : 1,
 	"hideprojectwindow" : 0,
@@ -10,16 +10,22 @@
 	"autolocalize" : 0,
 	"contents" : 	{
 		"patchers" : 		{
-			"MiraFlatten Demo.maxpat" : 			{
-				"kind" : "patcher"
+			"mira-flatten Demo DEV.maxpat" : 			{
+				"kind" : "patcher",
+				"local" : 1
 			}
 ,
-			"TestPatch Top.maxpat" : 			{
+			"mira-flatten example.maxpat" : 			{
 				"kind" : "patcher",
 				"local" : 1
 			}
 ,
 			"Test Patch Sub.maxpat" : 			{
+				"kind" : "patcher",
+				"local" : 1
+			}
+,
+			"TestPatch Top.maxpat" : 			{
 				"kind" : "patcher",
 				"local" : 1
 			}

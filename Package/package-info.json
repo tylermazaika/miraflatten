@@ -8,9 +8,8 @@
 	"website" : "www.zoftloud.gumroad.com",
 	"max_version_min" : "8.0.0",
 	"max_version_max" : "none",
-	"homepatcher" : "<something>.maxpat",
+	"homepatcher" : "MiraFlatten Demo.maxpat",
 	"package_extra" : {
-		"force_restart" : 0,
-		"arbitrary anything" : "blahblahblah"
+		"force_restart" : 0
 	}
 }
